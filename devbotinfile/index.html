@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="ur" dir="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0d0f1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DevBot">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>DevBot AI Assistant</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0d0f1a;
+  --s1:       #131520;
+  --s2:       #1a1d2e;
+  --s3:       #21253a;
+  --border:   #252840;
+  --accent:   #7c6aff;
+  --a2:       #a78bfa;
+  --a3:       #38bdf8;
+  --text:     #dde1f0;
+  --muted:    #6b7280;
+  --dim:      #374151;
+  --green:    #22d3a8;
+  --red:      #f87171;
+  --orange:   #fbbf24;
+  --r:        14px;
+  --r-sm:     8px;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+.hdr {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: var(--s1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+.hdr-logo {
+  width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--a3));
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+}
+.hdr-title { font-size: 15px; font-weight: 700; line-height: 1.2; }
+.hdr-sub   { font-size: 11px; color: var(--muted); }
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.pill {
+  font-size: 11px; padding: 4px 11px; border-radius: 20px;
+  border: 1px solid var(--border); color: var(--muted);
+  display: flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
+.dot.on { background: var(--green); box-shadow: 0 0 7px var(--green); }
+
+/* sidebar toggle — mobile only */
+#menuBtn {
+  display: none;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 7px 10px;
+  color: var(--text); cursor: pointer; font-size: 18px; line-height: 1;
+}
+
+/* ── LAYOUT ── */
+.shell { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 280px; flex-shrink: 0;
+  background: var(--s1);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.28s ease;
+}
+
+/* tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.tab {
+  flex: 1; padding: 10px 4px; text-align: center; font-size: 12px;
+  font-weight: 600; color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all 0.2s;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.tab-pane.active { display: flex; }
+
+/* upload pane */
+.up-section { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+.dropzone {
+  border: 2px dashed var(--border); border-radius: var(--r);
+  padding: 18px 12px; text-align: center; cursor: pointer;
+  transition: all 0.22s; position: relative;
+}
+.dropzone:hover, .dropzone.over {
+  border-color: var(--accent); background: rgba(124,106,255,.06);
+}
+.dropzone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.dz-icon { font-size: 26px; margin-bottom: 6px; }
+.dz-title { font-size: 13px; font-weight: 600; }
+.dz-sub   { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+.url-row { display: flex; gap: 6px; }
+.url-input {
+  flex: 1; background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 8px 11px; color: var(--text);
+  font-size: 12px; outline: none; transition: border-color .2s;
+}
+.url-input:focus { border-color: var(--accent); }
+.url-input::placeholder { color: var(--dim); }
+.url-btn {
+  padding: 8px 12px; border-radius: var(--r-sm); border: none;
+  background: var(--accent); color: #fff; font-size: 12px;
+  font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: opacity .2s;
+}
+.url-btn:hover { opacity: .85; }
+
+.prog-wrap { background: var(--border); border-radius: 3px; height: 3px; overflow: hidden; }
+.prog-bar  { height: 100%; background: linear-gradient(90deg, var(--accent), var(--a3)); border-radius: 3px; transition: width .3s; width: 0%; }
+
+/* stats */
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 0 12px 12px; }
+.sc {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 9px 10px;
+}
+.sc-val { font-size: 18px; font-weight: 700; color: var(--a2); }
+.sc-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* file tree */
+.tree-head {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted);
+  padding: 8px 14px 4px; flex-shrink: 0;
+}
+.tree { flex: 1; overflow-y: auto; padding: 0 10px 12px; }
+.fi {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 8px; border-radius: 7px;
+  font-size: 12px; color: var(--muted); transition: background .15s;
+}
+.fi:hover { background: var(--s2); color: var(--text); }
+.fi-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fi-sz   { font-size: 10px; color: var(--dim); }
+.fold    { font-weight: 700; color: var(--a2); font-size: 12px; padding: 5px 8px; }
+.ind     { padding-left: 22px; }
+
+/* sources pane */
+.sources-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.src-card {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 9px 11px;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.src-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.src-info { flex: 1; min-width: 0; }
+.src-name { font-size: 12px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.src-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.src-del  { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; }
+.src-del:hover { color: var(--red); background: rgba(248,113,113,.1); }
+.no-src { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 12px; }
+
+/* ── CHAT ── */
+.chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+.msgs {
+  flex: 1; overflow-y: auto;
+  padding: 18px 16px; display: flex; flex-direction: column; gap: 12px;
+}
+
+.empty {
+  margin: auto; text-align: center; color: var(--muted);
+  padding: 30px 20px; max-width: 340px;
+}
+.empty-icon { font-size: 48px; margin-bottom: 14px; }
+.empty h2   { font-size: 17px; color: var(--text); margin-bottom: 8px; }
+.empty p    { font-size: 13px; line-height: 1.7; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-top: 16px; }
+.chip {
+  font-size: 11px; padding: 5px 12px; border-radius: 20px;
+  background: var(--s2); border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; transition: all .2s;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.msg { display: flex; flex-direction: column; }
+.msg.user { align-items: flex-end; }
+.msg.bot  { align-items: flex-start; }
+.msg.info { align-items: center; }
+
+.bbl {
+  max-width: 78%; padding: 10px 14px; font-size: 14px;
+  line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+  direction: auto;
+}
+.msg.user .bbl {
+  background: linear-gradient(135deg, var(--accent), var(--a2));
+  color: #fff; border-radius: 16px 16px 4px 16px;
+}
+.msg.bot .bbl {
+  background: var(--s2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 16px 16px 16px 4px;
+}
+.msg.info .bbl {
+  background: rgba(124,106,255,.1); border: 1px solid rgba(124,106,255,.25);
+  color: var(--a2); font-size: 12px; padding: 6px 16px;
+  border-radius: 20px; max-width: 92%; text-align: center;
+}
+
+.typing { display: flex; gap: 5px; align-items: center; padding: 13px 16px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 16px 16px 16px 4px; width: fit-content; }
+.td { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: tb 1.2s infinite; }
+.td:nth-child(2) { animation-delay: .2s; }
+.td:nth-child(3) { animation-delay: .4s; }
+@keyframes tb { 0%,100%{transform:translateY(0);opacity:.4} 50%{transform:translateY(-6px);opacity:1} }
+
+/* ── INPUT ── */
+.inp-area {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--s1);
+  display: flex; gap: 9px; align-items: flex-end;
+  flex-shrink: 0;
+}
+#qInput {
+  flex: 1; background: var(--s2); border: 1px solid var(--border);
+  border-radius: 13px; padding: 10px 15px; color: var(--text);
+  font-size: 14px; font-family: inherit; resize: none; outline: none;
+  direction: auto; max-height: 110px; transition: border-color .2s;
+  line-height: 1.5;
+}
+#qInput:focus { border-color: var(--accent); }
+#qInput::placeholder { color: var(--dim); }
+.sbtn {
+  width: 44px; height: 44px; border-radius: 12px; border: none; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--a2));
+  color: #fff; font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .2s, transform .1s;
+}
+.sbtn:disabled { opacity: .3; cursor: not-allowed; }
+.sbtn:not(:disabled):hover { transform: scale(1.07); }
+
+/* overlay for mobile sidebar */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 40;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── MOBILE ── */
+@media (max-width: 680px) {
+  #menuBtn { display: block; }
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 50;
+    transform: translateX(-100%); width: 290px;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .overlay.open { display: block; }
+  .hdr-sub { display: none; }
+  .msgs { padding: 14px 12px; }
+  .bbl { max-width: 90%; font-size: 13px; }
+  .inp-area { padding: 10px 12px; }
+  #qInput { font-size: 16px; } /* prevent zoom on iOS */
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <button id="menuBtn" onclick="toggleSidebar()">☰</button>
+  <div class="hdr-logo">🧠</div>
+  <div>
+    <div class="hdr-title">DevBot</div>
+    <div class="hdr-sub">Developer Knowledge AI</div>
+  </div>
+  <div class="hdr-right">
+    <button onclick="showSetup()" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--muted);cursor:pointer;font-size:14px;" title="سیٹنگز">⚙️</button>
+    <div class="pill">
+      <div class="dot" id="sDot"></div>
+      <span id="sTxt">لوڈ نہیں</span>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- OVERLAY (mobile) -->
+  <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <!-- TABS -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('upload',this)">📤 لوڈ</div>
+      <div class="tab" onclick="switchTab('sources',this)">📚 ذرائع</div>
+    </div>
+
+    <!-- UPLOAD PANE -->
+    <div class="tab-pane active" id="pane-upload">
+      <div class="up-section">
+
+        <!-- ZIP / Files drop -->
+        <div class="dropzone" id="dz"
+          ondragover="ev(event,'over')" ondragleave="ev(event)"
+          ondrop="onDrop(event)">
+          <input type="file" id="fInput" multiple
+            accept=".zip,.txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.py,.java,.cpp,.c,.cs,.rb,.go,.rs,.sql,.yaml,.yml,.ini,.cfg,.log,.sh,.bat"
+            onchange="handleFiles(this.files)">
+          <div class="dz-icon">📦</div>
+          <div class="dz-title">فائلیں یا ZIP ڈراپ کریں</div>
+          <div class="dz-sub">txt · md · csv · json · zip · py · js · html … سب</div>
+        </div>
+
+        <!-- Smart URL box -->
+        <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;">
+          <div style="background:var(--s3);padding:8px 11px;font-size:11px;font-weight:700;color:var(--a2);display:flex;align-items:center;gap:6px;">
+            <span>🔗</span> URL ڈالیں — باقی سب خود ہوگا
+          </div>
+          <div style="padding:10px;display:flex;flex-direction:column;gap:8px;">
+            <textarea id="smartUrls" rows="4"
+              style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:var(--text);font-size:12px;font-family:inherit;resize:vertical;outline:none;line-height:1.6;"
+              placeholder="GitHub, Pastebin, Gist — کوئی بھی URL&#10;ایک لائن میں ایک URL&#10;&#10;مثال:&#10;https://github.com/mdn/content/blob/main/files/en-us/web/html/index.md&#10;https://github.com/mdn/content/tree/main/files/en-us/web/css"></textarea>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input class="url-input" id="ghToken" type="password"
+                placeholder="GitHub Token — ایک بار ڈالیں، ہمیشہ یاد رہے گا"
+                style="font-size:11px;flex:1;">
+              <button onclick="saveToken()" title="محفوظ کریں"
+                style="background:var(--green);border:none;border-radius:8px;padding:7px 10px;color:#000;font-size:13px;cursor:pointer;font-weight:700;flex-shrink:0;">💾</button>
+              <button onclick="clearToken()" title="ہٹائیں"
+                style="background:var(--s3);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--muted);font-size:13px;cursor:pointer;flex-shrink:0;">🗑</button>
+            </div>
+            <div id="tokenStatus" style="font-size:10px;color:var(--dim);"></div>
+            <button class="url-btn" onclick="smartLoad()" style="width:100%;padding:10px;font-size:13px;">⚡ لوڈ کریں</button>
+            <div id="urlHint" style="font-size:10px;color:var(--dim);line-height:1.6;">
+              GitHub blob/tree/raw • Pastebin raw • Gist raw — سب چلتے ہیں
+            </div>
+          </div>
+        </div>
+
+        <!-- progress -->
+        <div class="prog-wrap" id="progWrap" style="display:none">
+          <div class="prog-bar" id="progBar"></div>
+        </div>
+
+      </div>
+
+      <!-- stats -->
+      <div class="stats" id="statsBox" style="display:none">
+        <div class="sc"><div class="sc-val" id="stFiles">0</div><div class="sc-lbl">فائلیں</div></div>
+        <div class="sc"><div class="sc-val" id="stWords">0</div><div class="sc-lbl">الفاظ</div></div>
+        <div class="sc"><div class="sc-val" id="stFolders">0</div><div class="sc-lbl">فولڈر</div></div>
+        <div class="sc"><div class="sc-val" id="stURLs">0</div><div class="sc-lbl">URLs</div></div>
+      </div>
+
+      <!-- file tree -->
+      <div class="tree-head" id="treeHead" style="display:none">فائل ڈھانچہ</div>
+      <div class="tree" id="treeBox"></div>
+    </div>
+
+    <!-- SOURCES PANE -->
+    <div class="tab-pane" id="pane-sources">
+      <div class="sources-list" id="srcList">
+        <div class="no-src">ابھی کوئی ذریعہ نہیں<br>فائلیں یا URLs لوڈ کریں</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETUP MODAL -->
+  <div id="setupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:18px;padding:24px;max-width:360px;width:100%;">
+      <div style="font-size:24px;text-align:center;margin-bottom:4px;">🧠</div>
+      <h2 style="text-align:center;font-size:16px;margin-bottom:4px;">اپنا DevBot سیٹ کریں</h2>
+      <p style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:18px;">ایک بار — پھر ہمیشہ یاد رہے گا</p>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">آپ کا نام</div>
+          <input id="setupName" class="url-input" placeholder="مثال: احمد" style="width:100%;">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">بوٹ آپ کو کیسے بلائے؟</div>
+          <input id="setupNick" class="url-input" placeholder="مثال: احمد بھائی، Boss، Sir" style="width:100%;">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">GitHub Username</div>
+          <input id="setupGHUser" class="url-input" placeholder="مثال: ahmad123" style="width:100%;">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">GitHub Repo نام (data save کے لیے)</div>
+          <input id="setupGHRepo" class="url-input" placeholder="مثال: devbot" style="width:100%;">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">GitHub Token (repo scope)</div>
+          <input id="setupGHToken" class="url-input" type="password" placeholder="ghp_..." style="width:100%;">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">🤖 Ollama URL (Colab سے ملا)</div>
+          <input id="setupOllamaURL" class="url-input" placeholder="https://xxxx.ngrok-free.app" style="width:100%;">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Model نام</div>
+          <input id="setupOllamaModel" class="url-input" placeholder="phi3:mini" style="width:100%;">
+        </div>
+        <button onclick="saveSetup()" style="background:linear-gradient(135deg,var(--accent),var(--a2));border:none;border-radius:10px;padding:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;font-family:inherit;">
+          ✅ محفوظ کریں اور شروع کریں
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat">
+    <div class="msgs" id="msgs">
+      <div class="empty" id="emptyState">
+        <div class="empty-icon">⚡</div>
+        <h2>DevBot تیار ہے</h2>
+        <p>بائیں طرف فائلیں یا ZIP لوڈ کریں،<br>
+        یا GitHub Raw لنک پیسٹ کریں۔<br>
+        پھر جو چاہیں پوچھیں — اردو یا انگریزی میں</p>
+        <div class="chips">
+          <div class="chip" onclick="ask('HTML کیا ہے؟')">HTML کیا ہے؟</div>
+          <div class="chip" onclick="ask('CSS Flexbox سمجھائیں')">Flexbox</div>
+          <div class="chip" onclick="ask('تمہارے پاس کیا ڈیٹا ہے؟')">میرا ڈیٹا</div>
+          <div class="chip" onclick="ask('JavaScript async await کیا ہے؟')">Async/Await</div>
+        </div>
+      </div>
+    </div>
+    <div class="inp-area">
+      <textarea id="qInput" rows="1"
+        placeholder="سوال کریں… (Enter = بھیجیں، Shift+Enter = نئی لائن)"
+        oninput="resize(this)" onkeydown="onKey(event)"></textarea>
+      <button class="sbtn" id="sBtn" onclick="send()" disabled>➤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
+const KB = [];          // { name, content, type, source }
+const sources = [];     // { name, type:'file'|'url', meta }
+let totalWords = 0, totalFolders = 0, totalURLs = 0;
+let busy = false;
+const history = [];
+
+const SUPPORTED = ['txt','md','csv','json','xml','html','css','js','ts','jsx','tsx',
+  'py','java','cpp','c','cs','rb','go','rs','sql','yaml','yml','ini','cfg','log','sh','bat','php','swift','kt'];
+
+const ICONS = {
+  txt:'📄',md:'📝',csv:'📊',json:'📋',xml:'🔧',html:'🌐',css:'🎨',
+  js:'📜',ts:'📜',jsx:'⚛️',tsx:'⚛️',py:'🐍',java:'☕',cpp:'⚙️',
+  c:'⚙️',cs:'💜',rb:'💎',go:'🐹',rs:'🦀',sql:'🗄️',yaml:'📑',
+  yml:'📑',sh:'🖥️',bat:'🖥️',php:'🐘',swift:'🍎',kt:'📱',zip:'📦',
+};
+const ico = e => ICONS[e] || '📄';
+const fmt = b => b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'K':(b/1048576).toFixed(1)+'M';
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ═══════════════════════════════════════
+//  SIDEBAR / TABS
+// ═══════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('open');
+}
+function switchTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pane-'+id).classList.add('active');
+}
+
+// ═══════════════════════════════════════
+//  FILE HANDLING
+// ═══════════════════════════════════════
+function ev(e, cls) {
+  e.preventDefault();
+  cls ? document.getElementById('dz').classList.add(cls)
+      : document.getElementById('dz').classList.remove('over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dz').classList.remove('over');
+  handleFiles(e.dataTransfer.files);
+}
+
+async function handleFiles(files) {
+  const arr = Array.from(files);
+  showProg(true); setProg(5);
+  for (let i=0;i<arr.length;i++) {
+    const f = arr[i];
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (ext === 'zip') await readZip(f);
+    else if (SUPPORTED.includes(ext)) await readTextFile(f);
+    setProg(5 + Math.floor(((i+1)/arr.length)*90));
+  }
+  setProg(100); showProg(false);
+  updateUI();
+}
+
+async function readTextFile(f) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => {
+      addKB(f.name, e.target.result, f.name.split('.').pop().toLowerCase(), 'file', f.size);
+      res();
+    };
+    r.readAsText(f, 'UTF-8');
+  });
+}
+
+async function readZip(file) {
+  const zip = new JSZip();
+  let z;
+  try { z = await zip.loadAsync(file); } catch(e) { addInfo('❌ ZIP خراب ہے'); return; }
+  const entries = Object.entries(z.files);
+  for (const [path, entry] of entries) {
+    if (entry.dir) { totalFolders++; continue; }
+    const ext = path.split('.').pop().toLowerCase();
+    if (!SUPPORTED.includes(ext)) continue;
+    try {
+      const txt = await entry.async('string');
+      addKB(path, txt, ext, 'zip:'+file.name, entry._data?.uncompressedSize||0);
+    } catch(e) {}
+  }
+}
+
+// ═══════════════════════════════════════
+//  GITHUB API — CORS-FREE ✅
+// ═══════════════════════════════════════
+// ═══════════════════════════════════════
+//  SMART URL LOADER — auto-detects everything
+// ═══════════════════════════════════════
+// ═══════════════════════════════════════
+//  TOKEN SAVE/LOAD — localStorage
+// ═══════════════════════════════════════
+function saveToken() {
+  const t = document.getElementById('ghToken').value.trim();
+  if (!t) { showTokenStatus('⚠️ Token خالی ہے', 'var(--orange)'); return; }
+  if (!t.startsWith('ghp_') && !t.startsWith('github_pat_')) {
+    showTokenStatus('⚠️ Token درست نہیں لگتا', 'var(--orange)'); return;
+  }
+  localStorage.setItem('devbot_gh_token', t);
+  showTokenStatus('✅ Token محفوظ ہو گیا — اب ہمیشہ یاد رہے گا', 'var(--green)');
+}
+
+function clearToken() {
+  localStorage.removeItem('devbot_gh_token');
+  document.getElementById('ghToken').value = '';
+  showTokenStatus('🗑 Token ہٹا دیا گیا', 'var(--red)');
+}
+
+function showTokenStatus(msg, color) {
+  const el = document.getElementById('tokenStatus');
+  el.textContent = msg;
+  el.style.color = color;
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+function loadSavedToken() {
+  const saved = localStorage.getItem('devbot_gh_token');
+  if (saved) {
+    document.getElementById('ghToken').value = saved;
+    document.getElementById('tokenStatus').textContent = '🔒 Token لوڈ ہو گیا';
+    document.getElementById('tokenStatus').style.color = 'var(--green)';
+  }
+}
+
+async function smartLoad() {
+  const raw = document.getElementById('smartUrls').value.trim();
+  if (!raw) return;
+  const token = document.getElementById('ghToken').value.trim();
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  document.getElementById('urlHint').textContent = `⏳ ${lines.length} URL پروسس ہو رہی ہیں…`;
+  showProg(true);
+
+  for (let i=0; i<lines.length; i++) {
+    setProg(Math.floor((i/lines.length)*100));
+    await autoDetectAndLoad(lines[i], token);
+  }
+
+  setProg(100); showProg(false);
+  document.getElementById('smartUrls').value = '';
+  document.getElementById('urlHint').textContent = '✅ سب لوڈ — اب سوال کریں!';
+  updateUI();
+}
+
+async function autoDetectAndLoad(url, token='') {
+  url = url.trim();
+  if (!url) return;
+
+  // ── GitHub URLs ──
+  const ghBlob  = url.match(/github\.com\/([^/]+\/[^/]+)\/blob\/([^/]+)\/(.+)/);
+  const ghTree  = url.match(/github\.com\/([^/]+\/[^/]+)\/tree\/([^/]+)\/?(.+)?/);
+  const ghRaw   = url.match(/raw\.githubusercontent\.com\/([^/]+\/[^/]+)\/([^/]+)\/(.+)/);
+  const ghRepo  = url.match(/^https?:\/\/github\.com\/([^/]+\/[^/?#]+)\/?$/);
+
+  const ghHeaders = { 'Accept': 'application/vnd.github+json' };
+  if (token) ghHeaders['Authorization'] = 'Bearer ' + token;
+
+  if (ghBlob) {
+    // Single file via blob URL
+    const [, repo, branch, path] = ghBlob;
+    addInfo(`🐙 ${path.split('/').pop()} لوڈ ہو رہی ہے…`);
+    await ghFetchFile(repo, path, branch, ghHeaders);
+
+  } else if (ghTree) {
+    // Folder/tree URL
+    const [, repo, branch, path=''] = ghTree;
+    addInfo(`🐙 فولڈر لوڈ ہو رہا ہے: ${path||repo}…`);
+    await ghFetchFolder(repo, path, branch, ghHeaders);
+
+  } else if (ghRaw) {
+    // raw.githubusercontent.com link
+    const [, repo, branch, path] = ghRaw;
+    addInfo(`🐙 Raw file لوڈ: ${path.split('/').pop()}…`);
+    await ghFetchFile(repo, path, branch, ghHeaders);
+
+  } else if (ghRepo) {
+    // Bare repo URL — load README
+    const [, repo] = ghRepo;
+    addInfo(`🐙 Repo README لوڈ: ${repo}…`);
+    await ghFetchFile(repo, 'README.md', '', ghHeaders);
+
+  } else {
+    // Direct URL (Pastebin, Gist raw, etc.)
+    await directFetch(url);
+  }
+}
+
+async function ghFetchFile(repo, path, branch, headers) {
+  const apiURL = `https://api.github.com/repos/${repo}/contents/${path}` + (branch ? `?ref=${branch}` : '');
+  try {
+    const res = await fetch(apiURL, { headers });
+    if (res.status === 403) { addInfo('⚠️ GitHub rate limit — Token ڈالیں'); return; }
+    if (!res.ok) { addInfo(`❌ نہیں ملی: ${path}`); return; }
+    const d = await res.json();
+    if (Array.isArray(d)) {
+      // Returned a directory listing
+      await ghFetchFolderItems(d, repo, headers);
+    } else if (d.content) {
+      const txt = atob(d.content.replace(/\n/g,''));
+      const ext = d.name.split('.').pop().toLowerCase();
+      addKB(`${repo}/${d.path}`, txt, SUPPORTED.includes(ext)?ext:'txt', 'github', d.size||0);
+      totalURLs++;
+      addInfo(`✅ ${d.name} — ${txt.split(/\s+/).filter(Boolean).length.toLocaleString()} الفاظ`);
+    }
+  } catch(e) { addInfo('❌ GitHub خطا: ' + e.message); }
+}
+
+async function ghFetchFolder(repo, path, branch, headers) {
+  const apiURL = `https://api.github.com/repos/${repo}/contents/${path}` + (branch ? `?ref=${branch}` : '');
+  try {
+    const res = await fetch(apiURL, { headers });
+    if (!res.ok) { addInfo(`❌ فولڈر نہیں ملا: ${path||repo}`); return; }
+    const items = await res.json();
+    if (!Array.isArray(items)) { 
+      // It's a single file
+      if (items.content) {
+        const txt = atob(items.content.replace(/\n/g,''));
+        const ext = items.name.split('.').pop().toLowerCase();
+        addKB(`${repo}/${items.path}`, txt, SUPPORTED.includes(ext)?ext:'txt', 'github', items.size||0);
+        totalURLs++;
+        addInfo(`✅ ${items.name} لوڈ`);
+      }
+      return;
+    }
+    await ghFetchFolderItems(items, repo, headers);
+  } catch(e) { addInfo('❌ ' + e.message); }
+}
+
+async function ghFetchFolderItems(items, repo, headers) {
+  const files = items.filter(f => f.type==='file' && SUPPORTED.includes(f.name.split('.').pop().toLowerCase()));
+  if (!files.length) { addInfo('⚠️ اس فولڈر میں قابل پڑھ فائل نہیں'); return; }
+  for (const f of files) {
+    try {
+      const r = await fetch(f.url, { headers });
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (!d.content) continue;
+      const txt = atob(d.content.replace(/\n/g,''));
+      const ext = f.name.split('.').pop().toLowerCase();
+      addKB(`${repo}/${f.path||f.name}`, txt, SUPPORTED.includes(ext)?ext:'txt', 'github', d.size||0);
+      totalURLs++;
+    } catch(e) {}
+  }
+  addInfo(`✅ ${files.length} فائلیں لوڈ — ${repo}`);
+}
+
+async function directFetch(url) {
+  const name = url.split('/').pop().split('?')[0] || 'source';
+  const proxies = [
+    u => u,
+    u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  ];
+  addInfo('⏳ ' + name + ' لوڈ ہو رہی ہے…');
+  for (const proxy of proxies) {
+    try {
+      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(7000) });
+      if (!res.ok) continue;
+      const txt = await res.text();
+      if (txt && txt.length > 20) {
+        const ext = name.split('.').pop().toLowerCase();
+        addKB(name, txt, SUPPORTED.includes(ext)?ext:'txt', 'url', txt.length);
+        totalURLs++;
+        addInfo(`✅ ${name} — ${txt.split(/\s+/).filter(Boolean).length.toLocaleString()} الفاظ`);
+        return;
+      }
+    } catch(e) { continue; }
+  }
+  addInfo(`❌ ${name} لوڈ نہیں ہوئی`);
+}
+
+// Legacy wrappers (kept for compatibility)
+async function fetchGitHub() { await smartLoad(); }
+async function fetchURL() { await smartLoad(); }
+
+// ═══════════════════════════════════════
+//  KNOWLEDGE BASE
+// ═══════════════════════════════════════
+function addKB(name, kbContent, type, source, size=0) {
+  const words = kbContent.split(/\s+/).filter(Boolean).length;
+  totalWords += words;
+  KB.push({ name, content: kbContent, type, source, words, size });
+  sources.push({ name, type: source.startsWith('url')||source==='github'?'url':'file', meta: fmt(size)||words+' الفاظ' });
+  // Auto-save content to GitHub knowledge folder
+  if (profile.ghToken && source !== 'gh-cache') {
+    const safeName = name.replace(/[\/]/g, '__');
+    ghSaveFile(`devbot-data/knowledge/${safeName}`, kbContent, `Save: ${safeName}`).catch(()=>{});
+  }
+}
+
+function buildContext() {
+  const all = KB.map(k => `=== ${k.name} ===\n${k.content}`).join('\n\n');
+  return all.length > 30000 ? all.substring(0,30000) + '\n\n[…مزید مواد…]' : all;
+}
+
+// ═══════════════════════════════════════
+//  UI UPDATES
+// ═══════════════════════════════════════
+function updateUI() {
+  // stats
+  document.getElementById('statsBox').style.display = 'grid';
+  document.getElementById('stFiles').textContent   = KB.length;
+  document.getElementById('stWords').textContent   = totalWords>9999?(totalWords/1000).toFixed(1)+'k':totalWords;
+  document.getElementById('stFolders').textContent = totalFolders;
+  document.getElementById('stURLs').textContent    = totalURLs;
+
+  // status
+  document.getElementById('sDot').classList.add('on');
+  document.getElementById('sTxt').textContent = 'تیار (' + KB.length + ')';
+  document.getElementById('sBtn').disabled = false;
+
+  // file tree
+  buildTree();
+
+  // sources list
+  buildSourcesList();
+
+  // Auto-save URLs to GitHub
+  if (profile.ghToken) ghSaveURLs();
+}
+
+function buildTree() {
+  document.getElementById('treeHead').style.display='block';
+  const box = document.getElementById('treeBox');
+  const tree = {}; const roots = [];
+  KB.forEach(k => {
+    const parts = k.name.split('/');
+    if (parts.length===1) roots.push(k);
+    else {
+      const f = parts[0];
+      tree[f] = tree[f]||[];
+      tree[f].push({...k, short: parts.slice(1).join('/')});
+    }
+  });
+  let html = '';
+  roots.forEach(k => {
+    html += `<div class="fi"><span>${ico(k.type)}</span><span class="fi-name">${esc(k.name)}</span><span class="fi-sz">${fmt(k.size)}</span></div>`;
+  });
+  Object.entries(tree).forEach(([folder,files]) => {
+    html += `<div class="fi fold">📁 ${esc(folder)}</div>`;
+    files.slice(0,8).forEach(k => {
+      html += `<div class="fi ind"><span>${ico(k.type)}</span><span class="fi-name">${esc(k.short)}</span><span class="fi-sz">${fmt(k.size)}</span></div>`;
+    });
+    if (files.length>8) html += `<div class="fi ind" style="color:var(--dim);font-size:10px">…${files.length-8} مزید</div>`;
+  });
+  box.innerHTML = html;
+}
+
+function buildSourcesList() {
+  const box = document.getElementById('srcList');
+  if (!sources.length) { box.innerHTML='<div class="no-src">ابھی کوئی ذریعہ نہیں</div>'; return; }
+  box.innerHTML = sources.map((s,i) => `
+    <div class="src-card">
+      <span class="src-icon">${s.type==='url'?'🌐':'📄'}</span>
+      <div class="src-info">
+        <div class="src-name">${esc(s.name)}</div>
+        <div class="src-meta">${s.type==='url'?'URL':'فائل'} · ${s.meta}</div>
+      </div>
+      <button class="src-del" onclick="removeSrc(${i})" title="ہٹائیں">✕</button>
+    </div>`).join('');
+}
+
+function removeSrc(i) {
+  KB.splice(i,1); sources.splice(i,1);
+  if (!KB.length) {
+    document.getElementById('sDot').classList.remove('on');
+    document.getElementById('sTxt').textContent='لوڈ نہیں';
+    document.getElementById('sBtn').disabled=true;
+    document.getElementById('statsBox').style.display='none';
+    document.getElementById('treeHead').style.display='none';
+    document.getElementById('treeBox').innerHTML='';
+  } else updateUI();
+  buildSourcesList();
+}
+
+function showProg(v) { document.getElementById('progWrap').style.display=v?'block':'none'; }
+function setProg(v)  { document.getElementById('progBar').style.width=v+'%'; }
+
+// ═══════════════════════════════════════
+//  PERSONAL PROFILE
+// ═══════════════════════════════════════
+let profile = {
+  name: '', nick: '', ghUser: '', ghRepo: '', ghToken: '', ollamaURL: '', ollamaModel: 'phi3:mini'
+};
+
+function buildSystem() {
+  const p = profile;
+  const greeting = p.nick ? `تم ${p.nick||p.name} کے ذاتی AI اسسٹنٹ ہو۔` : 'تم ایک ذہین AI اسسٹنٹ ہو۔';
+  return `${greeting}
+
+اصول:
+- مالک کا نام: ${p.name||'صاحب'} — انہیں "${p.nick||p.name||'آپ'}" کہہ کر بلاؤ
+- اردو اور انگریزی دونوں سمجھو — جواب اسی زبان میں دو جو سوال ہو
+- اگر ڈیٹا میں معلومات ہو تو وہاں سے دو، ورنہ اپنی عام نالج سے دو
+- کوڈ مثالیں دو جب ضرورت ہو
+- دوستانہ، مختصر اور واضح جواب دو
+- مالک کی ترجیحات یاد رکھو
+
+لوڈ کردہ ڈیٹا:
+`;
+}
+
+// ═══════════════════════════════════════
+//  SETUP MODAL
+// ═══════════════════════════════════════
+function showSetup() {
+  document.getElementById('setupModal').style.display = 'flex';
+  // pre-fill saved values
+  document.getElementById('setupName').value    = profile.name    || '';
+  document.getElementById('setupNick').value    = profile.nick    || '';
+  document.getElementById('setupGHUser').value  = profile.ghUser  || '';
+  document.getElementById('setupGHRepo').value  = profile.ghRepo  || '';
+  document.getElementById('setupGHToken').value = profile.ghToken || '';
+  document.getElementById('setupOllamaURL').value = profile.ollamaURL || localStorage.getItem('devbot_ollama_url') || '';
+  document.getElementById('setupOllamaModel').value = profile.ollamaModel || 'phi3:mini';
+}
+
+function hideSetup() {
+  document.getElementById('setupModal').style.display = 'none';
+}
+
+async function saveSetup() {
+  try {
+    profile.name    = document.getElementById('setupName').value.trim();
+    profile.nick    = document.getElementById('setupNick').value.trim();
+    profile.ghUser  = document.getElementById('setupGHUser').value.trim();
+    profile.ghRepo  = document.getElementById('setupGHRepo').value.trim();
+    profile.ghToken = document.getElementById('setupGHToken').value.trim();
+    profile.ollamaURL = document.getElementById('setupOllamaURL').value.trim().replace(/\/+$/, '');
+    profile.ollamaModel = document.getElementById('setupOllamaModel').value.trim() || 'phi3:mini';
+
+    if (!profile.name) { alert('نام ضروری ہے'); return; }
+
+    localStorage.setItem('devbot_profile', JSON.stringify(profile));
+    if (profile.ollamaURL) localStorage.setItem('devbot_ollama_url', profile.ollamaURL);
+    if (profile.ghToken) {
+      document.getElementById('ghToken').value = profile.ghToken;
+      localStorage.setItem('devbot_gh_token', profile.ghToken);
+    }
+
+    hideSetup();
+    updateHeader();
+    document.getElementById('sBtn').disabled = false;
+    addMsg('bot', `السلام علیکم ${profile.nick||profile.name}! مجھے خوشی ہے کہ آپ نے مجھے اپنا ذاتی AI بنایا۔ کیا مدد چاہیے؟`);
+
+    if (profile.ghToken && profile.ghUser && profile.ghRepo) {
+      addInfo('⏳ GitHub پر profile save ہو رہا ہے...');
+      const ok = await ghSaveFile('devbot-data/profile.json', JSON.stringify(profile, null, 2), 'DevBot profile');
+      if (ok) {
+        addInfo('GitHub پر محفوظ — پرانا ڈیٹا چیک ہو رہا ہے...');
+        await ghLoadAllData();
+      } else {
+        addInfo('GitHub save نہیں ہوا — Token میں repo permission چیک کریں');
+      }
+    }
+  } catch(e) {
+    console.error(e);
+    alert('خطا آئی: ' + e.message);
+  }
+}
+
+function updateHeader() {
+  if (profile.name) {
+    document.querySelector('.hdr-sub').textContent = `${profile.name} کا ذاتی AI`;
+  }
+}
+
+// ═══════════════════════════════════════
+//  GITHUB DATA SAVE/LOAD
+// ═══════════════════════════════════════
+async function ghSaveFile(path, contentStr, message) {
+  if (!profile.ghToken || !profile.ghUser || !profile.ghRepo) return false;
+  const b64 = btoa(unescape(encodeURIComponent(contentStr)));
+  const apiURL = `https://api.github.com/repos/${profile.ghUser}/${profile.ghRepo}/contents/${path}`;
+  const headers = {
+    'Authorization': 'Bearer ' + profile.ghToken,
+    'Accept': 'application/vnd.github+json',
+    'Content-Type': 'application/json'
+  };
+
+  // Check if file exists (get SHA)
+  let sha = '';
+  try {
+    const check = await fetch(apiURL, { headers });
+    if (check.ok) { const d = await check.json(); sha = d.sha || ''; }
+  } catch(e) {}
+
+  const body = { message, content: b64 };
+  if (sha) body.sha = sha;
+
+  try {
+    const res = await fetch(apiURL, { method: 'PUT', headers, body: JSON.stringify(body) });
+    return res.ok;
+  } catch(e) { return false; }
+}
+
+async function ghLoadFile(path) {
+  if (!profile.ghToken || !profile.ghUser || !profile.ghRepo) return null;
+  const apiURL = `https://api.github.com/repos/${profile.ghUser}/${profile.ghRepo}/contents/${path}`;
+  try {
+    const res = await fetch(apiURL, {
+      headers: {
+        'Authorization': 'Bearer ' + profile.ghToken,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d.content) return null;
+    return decodeURIComponent(escape(atob(d.content.replace(/\n/g,'')))); } catch(e) { return null; }}
+
+async function ghSaveURLs() {
+  if (!profile.ghToken) return;
+  const urlList = sources.filter(s=>s.source!=='gh-cache').map(s => s.name).join('\n')
+  await ghSaveFile('devbot-data/urls.txt', urlList, 'DevBot URLs update');
+}
+
+async function ghLoadAllData() {
+  if (!profile.ghToken || !profile.ghUser || !profile.ghRepo) return;
+  addInfo('⏳ GitHub سے محفوظ ڈیٹا لوڈ ہو رہا ہے…');
+
+  // Load knowledge folder first (cached content — no re-download needed!)
+  const knowledgeFolder = await ghListFolder('devbot-data/knowledge');
+  if (knowledgeFolder && knowledgeFolder.length) {
+    addInfo(`📚 ${knowledgeFolder.length} محفوظ فائلیں مل گئیں — لوڈ ہو رہی ہیں…`);
+    let loaded = 0;
+    for (const f of knowledgeFolder) {
+      try {
+        const txt = await ghLoadFile(`devbot-data/knowledge/${f.name}`);
+        if (txt) {
+          const ext = f.name.split('.').pop().toLowerCase();
+          const displayName = f.name.replace(/__/g, '/');
+          KB.push({ name: displayName, content: txt, type: SUPPORTED.includes(ext)?ext:'txt', source: 'gh-cache', words: txt.split(/\s+/).filter(Boolean).length, size: f.size||0 });
+          sources.push({ name: displayName, type: 'url', meta: fmt(f.size||0) });
+          totalWords += txt.split(/\s+/).filter(Boolean).length;
+          loaded++;
+        }
+      } catch(e) {}
+    }
+    updateUI();
+    addInfo(`✅ ${loaded} فائلیں GitHub cache سے لوڈ — کوئی re-download نہیں!`);
+    document.getElementById('sBtn').disabled = false;
+  } else {
+    // No cache — load from URLs list
+    const urlsTxt = await ghLoadFile('devbot-data/urls.txt');
+    if (urlsTxt) {
+      const urls = urlsTxt.split('\n').filter(Boolean);
+      if (urls.length) {
+        document.getElementById('smartUrls').value = urls.join('\n');
+        addInfo(`📋 ${urls.length} URLs ملی — پہلی بار لوڈ ہو رہی ہیں (آئندہ cache سے آئیں گی)…`);
+        await smartLoad();
+      }
+    } else {
+      addInfo('ℹ️ پہلی بار ہے — URLs ڈالیں، پھر ہمیشہ خود لوڈ ہوگا');
+    }
+  }
+}
+
+async function ghListFolder(path) {
+  if (!profile.ghToken || !profile.ghUser || !profile.ghRepo) return null;
+  const apiURL = `https://api.github.com/repos/${profile.ghUser}/${profile.ghRepo}/contents/${path}`;
+  try {
+    const res = await fetch(apiURL, {
+      headers: {
+        'Authorization': 'Bearer ' + profile.ghToken,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return Array.isArray(d) ? d.filter(f => f.type === 'file') : null;
+  } catch(e) { return null; }
+}
+
+// ═══════════════════════════════════════
+//  CHAT
+// ═══════════════════════════════════════
+
+async function send() {
+  const el = document.getElementById('qInput');
+  const q = el.value.trim();
+  if (!q || busy) return;
+
+  el.value = ''; el.style.height = 'auto';
+  addMsg('user', q);
+  history.push({role:'user', content: q});
+  busy=true; document.getElementById('sBtn').disabled=true;
+  const tyEl = showTyping();
+
+  try {
+    const ollamaURL = profile.ollamaURL || localStorage.getItem('devbot_ollama_url') || '';
+    if (!ollamaURL) throw new Error('Ollama URL نہیں ملی — ⚙️ Setup میں ڈالیں');
+
+    const systemText = buildSystem() + buildContext();
+    const msgs = [
+      { role: 'system', content: systemText },
+      ...history.slice(-12)
+    ];
+
+    const res = await fetch(`${ollamaURL}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+      },
+      body: JSON.stringify({
+        model: profile.ollamaModel || 'phi3:mini',
+        messages: msgs,
+        stream: false,
+        options: { num_predict: 1000, temperature: 0.7 }
+      })
+    });
+    const d = await res.json();
+    tyEl.remove();
+    if (d.error) throw new Error(d.error);
+    const reply = d.message?.content?.trim() || 'جواب نہیں ملا';
+    addMsg('bot', reply);
+    history.push({role:'assistant', content: reply});
+  } catch(e) {
+    tyEl.remove();
+    addMsg('bot','❌ خطا: ' + (e.message||'دوبارہ کوشش کریں'));
+  } finally {
+    busy=false;
+    document.getElementById('sBtn').disabled=false;
+    el.focus();
+  }
+}
+
+function ask(q) { document.getElementById('qInput').value=q; send(); }
+
+function addMsg(type, text) {
+  const msgs = document.getElementById('msgs');
+  document.getElementById('emptyState')?.remove();
+  const d = document.createElement('div');
+  d.className = 'msg ' + type;
+  d.innerHTML = `<div class="bbl">${esc(text)}</div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addInfo(text) { addMsg('info', text); }
+
+function showTyping() {
+  const msgs = document.getElementById('msgs');
+  const d = document.createElement('div');
+  d.className='msg bot';
+  d.innerHTML='<div class="typing"><div class="td"></div><div class="td"></div><div class="td"></div></div>';
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+  return d;
+}
+
+function onKey(e) {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+function resize(el) {
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight,110)+'px';
+}
+document.getElementById('qInput').addEventListener('input', function(){
+  document.getElementById('sBtn').disabled = !this.value.trim();
+});
+
+// ── STARTUP ──
+function startup() {
+  // Load profile from localStorage
+  const saved = localStorage.getItem('devbot_profile');
+  if (saved) {
+    try {
+      profile = JSON.parse(saved);
+      updateHeader();
+      if (profile.ghToken) {
+        document.getElementById('ghToken').value = profile.ghToken;
+        showTokenStatus('🔒 Token لوڈ', 'var(--green)');
+      }
+      // Load data from GitHub
+      if (profile.ghToken && profile.ghUser && profile.ghRepo) {
+        ghLoadAllData();
+      }
+      document.getElementById('sBtn').disabled = false;
+      // Welcome back message
+      setTimeout(() => {
+        addMsg('bot', `خوش آمدید واپس ${profile.nick||profile.name}! 😊 آپ کا ڈیٹا GitHub سے لوڈ ہو رہا ہے۔`);
+      }, 500);
+    } catch(e) { showSetup(); }
+  } else {
+    // First time — show setup
+    showSetup();
+  }
+  loadSavedToken();
+}
+startup();
+</script>
+  <!-- PWA Install Button -->
+  <div id="installBar" style="display:none;position:fixed;bottom:80px;right:16px;z-index:999;">
+    <button onclick="installPWA()" style="
+      background:linear-gradient(135deg,#7c6aff,#a78bfa);
+      border:none;border-radius:14px;padding:12px 18px;
+      color:#fff;font-size:13px;font-weight:700;
+      box-shadow:0 4px 20px rgba(124,106,255,0.5);
+      cursor:pointer;display:flex;align-items:center;gap:8px;
+      font-family:inherit;
+    ">📲 ایپ Install کریں</button>
+  </div>
+
+<script>
+// ── PWA SERVICE WORKER ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(r => console.log('SW registered'))
+      .catch(e => console.log('SW error:', e));
+  });
+}
+
+// ── PWA INSTALL PROMPT ──
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBar').style.display = 'block';
+});
+
+function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') {
+      document.getElementById('installBar').style.display = 'none';
+      addMsg('info', '✅ DevBot ایپ install ہو گئی!');
+    }
+    deferredPrompt = null;
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBar').style.display = 'none';
+});
+</script>
+</body>
+</html>
