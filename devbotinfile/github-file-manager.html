@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ur" dir="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0b10">
+<title>GitHub File Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b10;--s1:#0f1018;--s2:#161820;--s3:#1e2030;
+  --border:#252840;--accent:#6c63ff;--a2:#a78bfa;--a3:#38bdf8;
+  --text:#dde1f0;--muted:#6b7280;--dim:#374151;
+  --green:#22d3a8;--red:#f87171;--orange:#fbbf24;--blue:#38bdf8;
+  --r:12px;--r-sm:8px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+
+.hdr{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;}
+.hdr-logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--a3));display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.hdr h1{font-size:15px;font-weight:700;}
+.hdr p{font-size:11px;color:var(--muted);}
+
+/* NAV */
+.nav{display:flex;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;}
+.nav-item{padding:12px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s;}
+.nav-item.active{color:var(--accent);border-bottom-color:var(--accent);}
+.nav-item:hover{color:var(--text);}
+
+.main{flex:1;overflow-y:auto;padding:14px;}
+.page{display:none;}
+.page.active{display:block;}
+
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;}
+.card-title{font-size:12px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+.inp{background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;color:var(--text);font-size:13px;width:100%;outline:none;font-family:inherit;transition:border-color .2s;}
+.inp:focus{border-color:var(--accent);}
+.inp::placeholder{color:var(--dim);}
+.field{margin-bottom:10px;}
+.lbl{font-size:11px;color:var(--muted);margin-bottom:4px;}
+
+.btn{padding:10px 16px;border-radius:var(--r-sm);border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:6px;justify-content:center;width:100%;}
+.btn-purple{background:linear-gradient(135deg,var(--accent),var(--a2));color:#fff;}
+.btn-blue{background:linear-gradient(135deg,#1d4ed8,var(--blue));color:#fff;}
+.btn-green{background:linear-gradient(135deg,#065f46,var(--green));color:#fff;}
+.btn-sm{padding:7px 12px;font-size:12px;background:var(--s3);color:var(--muted);border:1px solid var(--border);width:auto;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn:not(:disabled):hover{opacity:.9;}
+
+/* DROP ZONES */
+.dz{border:2px dashed var(--border);border-radius:var(--r);padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;position:relative;margin-bottom:10px;}
+.dz:hover,.dz.over{border-color:var(--accent);background:rgba(108,99,255,.05);}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.dz-icon{font-size:32px;margin-bottom:8px;}
+.dz-title{font-size:14px;font-weight:700;}
+.dz-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.dz-purple{border-color:rgba(108,99,255,.4);}
+.dz-blue{border-color:rgba(56,189,248,.4);}
+.dz-green{border-color:rgba(34,211,168,.4);}
+.dz-purple:hover,.dz-purple.over{border-color:var(--accent);background:rgba(108,99,255,.06);}
+.dz-blue:hover,.dz-blue.over{border-color:var(--blue);background:rgba(56,189,248,.06);}
+
+/* PROG */
+.prog-wrap{background:var(--border);border-radius:3px;height:4px;overflow:hidden;margin:8px 0;}
+.prog-bar{height:100%;border-radius:3px;transition:width .3s;width:0%;}
+.prog-purple{background:linear-gradient(90deg,var(--accent),var(--a2));}
+.prog-blue{background:linear-gradient(90deg,#1d4ed8,var(--blue));}
+.prog-green{background:linear-gradient(90deg,#065f46,var(--green));}
+
+/* LOG */
+.log{background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;max-height:220px;overflow-y:auto;font-size:11px;line-height:1.8;}
+.li{display:flex;align-items:flex-start;gap:5px;padding:1px 0;}
+.li.ok{color:var(--green);}
+.li.er{color:var(--red);}
+.li.inf{color:var(--muted);}
+.li.wn{color:var(--orange);}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+.sc{background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;text-align:center;}
+.sc-val{font-size:20px;font-weight:700;color:var(--a2);}
+.sc-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+
+.token-row{display:flex;gap:6px;}
+.token-status{font-size:10px;color:var(--dim);margin-top:4px;min-height:14px;}
+
+/* FILE LIST */
+.file-list{max-height:150px;overflow-y:auto;margin-bottom:8px;}
+.file-item{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--s2);border-radius:6px;margin-bottom:4px;font-size:12px;}
+.file-item .fi-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+.file-item .fi-size{color:var(--muted);font-size:10px;}
+.file-item .fi-icon{font-size:14px;flex-shrink:0;}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">📁</div>
+  <div>
+    <h1>GitHub File Manager</h1>
+    <p>فائل، فولڈر، URL → GitHub Repo</p>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-item active" onclick="showPage('settings',this)">⚙️ Settings</div>
+  <div class="nav-item" onclick="showPage('url',this)">🔗 URL</div>
+  <div class="nav-item" onclick="showPage('files',this)">📄 فائلیں</div>
+  <div class="nav-item" onclick="showPage('folder',this)">📂 فولڈر</div>
+  <div class="nav-item" onclick="showPage('log',this)">📋 Log</div>
+</div>
+
+<div class="main">
+
+  <!-- ══ SETTINGS PAGE ══ -->
+  <div class="page active" id="page-settings">
+    <div class="card">
+      <div class="card-title" style="color:var(--a2);">⚙️ GitHub Settings — ایک بار بھریں</div>
+      <div class="field">
+        <div class="lbl">GitHub Username</div>
+        <input class="inp" id="ghUser" placeholder="مثال: luqmaniaplace-cmd">
+      </div>
+      <div class="field">
+        <div class="lbl">Repository نام</div>
+        <input class="inp" id="ghRepo" placeholder="مثال: devbot">
+      </div>
+      <div class="field">
+        <div class="lbl">Default Folder (خالی = root میں)</div>
+        <input class="inp" id="ghFolder" placeholder="مثال: knowledge">
+      </div>
+      <div class="field">
+        <div class="lbl">GitHub Token (repo scope)</div>
+        <div class="token-row">
+          <input class="inp" id="ghToken" type="password" placeholder="ghp_..." style="flex:1;">
+          <button class="btn btn-sm" onclick="saveSettings()">💾</button>
+          <button class="btn btn-sm" onclick="clearSettings()">🗑</button>
+        </div>
+        <div class="token-status" id="tokenStatus"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--green);">✅ کیسے استعمال کریں</div>
+      <div style="font-size:12px;color:var(--muted);line-height:2;">
+        1. اوپر Settings بھریں اور 💾 دبائیں<br>
+        2. <b style="color:var(--text);">🔗 URL</b> — GitHub/Raw لنک ڈالیں<br>
+        3. <b style="color:var(--text);">📄 فائلیں</b> — کوئی بھی txt/md/json وغیرہ<br>
+        4. <b style="color:var(--text);">📂 فولڈر</b> — پورا فولڈر ایک ساتھ<br>
+        5. سب کچھ GitHub Repo میں Save ہوگا
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ URL PAGE ══ -->
+  <div class="page" id="page-url">
+    <div class="card">
+      <div class="card-title" style="color:var(--accent);">🔗 URL سے GitHub میں Save کریں</div>
+      <div class="field">
+        <div class="lbl">URLs — ہر لائن میں ایک</div>
+        <textarea class="inp" id="urlInput" rows="6" style="resize:vertical;line-height:1.7;"
+          placeholder="https://github.com/mdn/content/blob/main/files/en-us/web/html/index.md&#10;https://raw.githubusercontent.com/user/repo/main/file.md&#10;https://pastebin.com/raw/xxxxx"></textarea>
+      </div>
+      <div class="field">
+        <div class="lbl">Folder نام (خالی = default folder)</div>
+        <input class="inp" id="urlFolder" placeholder="مثال: html-docs">
+      </div>
+      <div class="prog-wrap" id="urlProgWrap" style="display:none">
+        <div class="prog-bar prog-purple" id="urlProgBar"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;" id="urlProgText"></div>
+      <button class="btn btn-purple" id="urlBtn" onclick="processURLs()">
+        ⚡ لوڈ کر کے GitHub میں Save کریں
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ FILES PAGE ══ -->
+  <div class="page" id="page-files">
+    <div class="card">
+      <div class="card-title" style="color:var(--blue);">📄 فائلیں Upload کریں</div>
+      <div class="dz dz-blue" id="fileDz"
+        ondragover="ev(event,'fileDz','over')" ondragleave="ev2(event,'fileDz')" ondrop="onDropFiles(event)">
+        <input type="file" id="fileInput" multiple
+          accept=".txt,.md,.csv,.json,.xml,.html,.css,.js,.ts,.py,.java,.cpp,.c,.cs,.rb,.go,.sql,.yaml,.yml,.sh,.log,.zip"
+          onchange="previewFiles(this.files,'files')">
+        <div class="dz-icon">📄</div>
+        <div class="dz-title">فائلیں یہاں ڈراپ کریں</div>
+        <div class="dz-sub">txt · md · json · csv · py · js · zip — کوئی بھی</div>
+      </div>
+      <div class="file-list" id="fileList"></div>
+      <div class="field">
+        <div class="lbl">Folder نام (خالی = default folder)</div>
+        <input class="inp" id="filesFolder" placeholder="مثال: my-notes">
+      </div>
+      <div class="prog-wrap" id="filesProgWrap" style="display:none">
+        <div class="prog-bar prog-blue" id="filesProgBar"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;" id="filesProgText"></div>
+      <button class="btn btn-blue" id="filesBtn" onclick="uploadFiles()" disabled>
+        📤 GitHub میں Upload کریں
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ FOLDER PAGE ══ -->
+  <div class="page" id="page-folder">
+    <div class="card">
+      <div class="card-title" style="color:var(--green);">📂 پورا فولڈر Upload کریں</div>
+      <div class="dz dz-green" id="folderDz" onclick="document.getElementById('folderInput').click()">
+        <input type="file" id="folderInput" webkitdirectory multiple
+          onchange="previewFiles(this.files,'folder')">
+        <div class="dz-icon">📂</div>
+        <div class="dz-title">فولڈر یہاں کلک کریں</div>
+        <div class="dz-sub">پورا فولڈر — اندر کی سب فائلیں GitHub میں جائیں گی</div>
+      </div>
+      <div class="file-list" id="folderList"></div>
+      <div class="field">
+        <div class="lbl">GitHub میں Folder نام (خالی = فولڈر کا اصل نام)</div>
+        <input class="inp" id="folderName" placeholder="مثال: my-project">
+      </div>
+      <div class="prog-wrap" id="folderProgWrap" style="display:none">
+        <div class="prog-bar prog-green" id="folderProgBar"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;" id="folderProgText"></div>
+      <button class="btn btn-green" id="folderBtn" onclick="uploadFolder()" disabled>
+        📂 GitHub میں Upload کریں
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ LOG PAGE ══ -->
+  <div class="page" id="page-log">
+    <div class="card">
+      <div class="card-title" style="color:var(--a2);">📋 Activity Log</div>
+      <div class="stats">
+        <div class="sc"><div class="sc-val" id="stSaved">0</div><div class="sc-lbl">✅ Save</div></div>
+        <div class="sc"><div class="sc-val" id="stFailed">0</div><div class="sc-lbl">❌ ناکام</div></div>
+        <div class="sc"><div class="sc-val" id="stSize">0</div><div class="sc-lbl">📦 KB</div></div>
+      </div>
+      <button class="btn btn-sm" onclick="clearLog()" style="width:100%;margin-bottom:8px;">🗑 Log صاف کریں</button>
+      <div class="log" id="logBox">
+        <div class="li inf"><span>ℹ️</span><span>ابھی کوئی activity نہیں</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══ STATE ══
+let fileQueue = [], folderQueue = [];
+let stats = {saved:0, failed:0, size:0};
+const SUPPORTED = ['txt','md','csv','json','xml','html','css','js','ts','jsx','tsx','py','java','cpp','c','cs','rb','go','rs','sql','yaml','yml','ini','cfg','log','sh','bat','php','swift','kt','r','scala'];
+const fmtSize = b => b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'K':(b/1048576).toFixed(1)+'M';
+const delay = ms => new Promise(r=>setTimeout(r,ms));
+const g = id => document.getElementById(id)?.value?.trim()||'';
+
+// ══ NAV ══
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ══ SETTINGS ══
+function saveSettings() {
+  const token = g('ghToken');
+  if (!token.startsWith('ghp_') && !token.startsWith('github_pat_') && token.length < 10) {
+    showTS('⚠️ Token درست نہیں لگتا','var(--orange)'); return;
+  }
+  localStorage.setItem('ghfm',JSON.stringify({
+    user:g('ghUser'),repo:g('ghRepo'),folder:g('ghFolder'),token
+  }));
+  showTS('✅ Settings محفوظ!','var(--green)');
+}
+
+function clearSettings() {
+  localStorage.removeItem('ghfm');
+  ['ghUser','ghRepo','ghFolder','ghToken'].forEach(id=>document.getElementById(id).value='');
+  showTS('🗑 Settings ہٹا دی گئیں','var(--red)');
+}
+
+function loadSettings() {
+  const s = localStorage.getItem('ghfm');
+  if(!s) return;
+  const d = JSON.parse(s);
+  if(d.user) document.getElementById('ghUser').value=d.user;
+  if(d.repo) document.getElementById('ghRepo').value=d.repo;
+  if(d.folder) document.getElementById('ghFolder').value=d.folder;
+  if(d.token){document.getElementById('ghToken').value=d.token;showTS('🔒 Token لوڈ','var(--green)');}
+}
+
+function getS() {
+  const s = localStorage.getItem('ghfm');
+  const d = s?JSON.parse(s):{};
+  return {user:g('ghUser')||d.user||'',repo:g('ghRepo')||d.repo||'',folder:g('ghFolder')||d.folder||'',token:g('ghToken')||d.token||''};
+}
+
+function showTS(msg,color){
+  const el=document.getElementById('tokenStatus');
+  el.textContent=msg;el.style.color=color;
+  setTimeout(()=>el.textContent='',4000);
+}
+
+// ══ DRAG DROP ══
+function ev(e,dzId,cls){e.preventDefault();if(cls)document.getElementById(dzId).classList.add(cls);}
+function ev2(e,dzId){document.getElementById(dzId).classList.remove('over');}
+function onDropFiles(e){
+  e.preventDefault();
+  document.getElementById('fileDz').classList.remove('over');
+  previewFiles(e.dataTransfer.files,'files');
+}
+
+// ══ FILE PREVIEW ══
+function previewFiles(files, type) {
+  const arr = Array.from(files);
+  if(type==='files'){
+    fileQueue = arr;
+    renderList('fileList', arr);
+    document.getElementById('filesBtn').disabled = arr.length===0;
+  } else {
+    folderQueue = arr;
+    renderList('folderList', arr);
+    document.getElementById('folderBtn').disabled = arr.length===0;
+  }
+}
+
+function renderList(listId, files) {
+  const box = document.getElementById(listId);
+  const icons = {txt:'📄',md:'📝',json:'📋',csv:'📊',py:'🐍',js:'📜',html:'🌐',css:'🎨',zip:'📦',xml:'🔧',sql:'🗄️',sh:'🖥️',java:'☕'};
+  const getIcon = f => icons[f.name.split('.').pop().toLowerCase()] || '📄';
+  box.innerHTML = files.slice(0,20).map(f=>`
+    <div class="file-item">
+      <span class="fi-icon">${getIcon(f)}</span>
+      <span class="fi-name">${f.webkitRelativePath||f.name}</span>
+      <span class="fi-size">${fmtSize(f.size)}</span>
+    </div>`).join('') + (files.length>20?`<div class="li inf" style="padding:4px 8px">...${files.length-20} مزید فائلیں</div>`:'');
+}
+
+// ══ GITHUB SAVE ══
+async function ghSave(path, content, s) {
+  const url = `https://api.github.com/repos/${s.user}/${s.repo}/contents/${path}`;
+  const headers = {'Authorization':`Bearer ${s.token}`,'Accept':'application/vnd.github+json','Content-Type':'application/json'};
+  const b64 = btoa(unescape(encodeURIComponent(content)));
+  let sha='';
+  try{const r=await fetch(url,{headers});if(r.ok){const d=await r.json();sha=d.sha||'';}}catch(e){}
+  const body={message:`Add: ${path.split('/').pop()}`,content:b64};
+  if(sha)body.sha=sha;
+  try{const r=await fetch(url,{method:'PUT',headers,body:JSON.stringify(body)});return r.ok;}
+  catch(e){return false;}
+}
+
+function buildPath(s, folder, filename) {
+  const safe = filename.replace(/[<>:"|?*\\]/g,'_');
+  const base = folder || s.folder || '';
+  return base ? `${base}/${safe}` : safe;
+}
+
+function checkSettings(s){
+  if(!s.token){addLog('❌ Token نہیں — Settings ٹیب میں بھریں','er');return false;}
+  if(!s.user||!s.repo){addLog('❌ Username اور Repo نام بھریں','er');return false;}
+  return true;
+}
+
+// ══ URL UPLOAD ══
+async function processURLs() {
+  const raw = document.getElementById('urlInput').value.trim();
+  if(!raw){addLog('⚠️ کوئی URL نہیں','wn');return;}
+  const s = getS();
+  if(!checkSettings(s))return;
+  const urls = raw.split('\n').map(u=>u.trim()).filter(Boolean);
+  const folder = g('urlFolder');
+  document.getElementById('urlBtn').disabled=true;
+  document.getElementById('urlProgWrap').style.display='block';
+  addLog(`⏳ ${urls.length} URLs پروسس ہو رہی ہیں...`,'inf');
+  for(let i=0;i<urls.length;i++){
+    setProg('url',Math.floor((i/urls.length)*100));
+    document.getElementById('urlProgText').textContent=`${i+1}/${urls.length}: ${urls[i].split('/').pop()}`;
+    await fetchAndSave(urls[i],folder,s);
+    await delay(300);
+  }
+  setProg('url',100);
+  document.getElementById('urlProgText').textContent='✅ مکمل!';
+  document.getElementById('urlBtn').disabled=false;
+  updateStats();
+  setTimeout(()=>{document.getElementById('urlProgWrap').style.display='none';},2000);
+}
+
+async function fetchAndSave(url,folder,s){
+  const ghBlob=url.match(/github\.com\/([^/]+\/[^/]+)\/blob\/([^/]+)\/(.+)/);
+  const name = url.split('/').pop().split('?')[0]||'file.txt';
+  if(ghBlob){
+    const[,repo,branch,path]=ghBlob;
+    try{
+      const r=await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`,{
+        headers:{'Authorization':`Bearer ${s.token}`,'Accept':'application/vnd.github+json'}
+      });
+      if(r.ok){
+        const d=await r.json();
+        if(d.content){
+          const content=atob(d.content.replace(/\n/g,''));
+          const sp=buildPath(s,folder,d.name);
+          const ok=await ghSave(sp,content,s);
+          if(ok){addLog(`✅ ${d.name} → ${sp}`,'ok');stats.saved++;stats.size+=content.length;}
+          else{addLog(`❌ Save نہیں: ${d.name}`,'er');stats.failed++;}
+          return;
+        }
+      }
+    }catch(e){}
+  }
+  const rawURL=url.replace('github.com','raw.githubusercontent.com').replace('/blob/','/');
+  const proxies=[u=>u,u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}`,u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`];
+  let content=null;
+  for(const p of proxies){
+    try{const r=await fetch(p(rawURL),{signal:AbortSignal.timeout(8000)});if(r.ok){const t=await r.text();if(t&&t.length>10){content=t;break;}}}catch(e){}
+  }
+  if(!content){addLog(`❌ نہیں آیا: ${name}`,'er');stats.failed++;return;}
+  const sp=buildPath(s,folder,name);
+  const ok=await ghSave(sp,content,s);
+  if(ok){addLog(`✅ ${name} → ${sp}`,'ok');stats.saved++;stats.size+=content.length;}
+  else{addLog(`❌ Save نہیں: ${name}`,'er');stats.failed++;}
+}
+
+// ══ FILES UPLOAD ══
+async function uploadFiles(){
+  if(!fileQueue.length)return;
+  const s=getS();
+  if(!checkSettings(s))return;
+  const folder=g('filesFolder');
+  document.getElementById('filesBtn').disabled=true;
+  document.getElementById('filesProgWrap').style.display='block';
+  for(let i=0;i<fileQueue.length;i++){
+    const f=fileQueue[i];
+    setProg('files',Math.floor((i/fileQueue.length)*100));
+    document.getElementById('filesProgText').textContent=`${i+1}/${fileQueue.length}: ${f.name}`;
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(ext==='zip'){await processZip(f,folder,s);}
+    else{await processTextFile(f,folder,f.name,s);}
+    await delay(200);
+  }
+  setProg('files',100);
+  document.getElementById('filesProgText').textContent='✅ مکمل!';
+  document.getElementById('filesBtn').disabled=false;
+  fileQueue=[];
+  document.getElementById('fileList').innerHTML='';
+  updateStats();
+  setTimeout(()=>{document.getElementById('filesProgWrap').style.display='none';},2000);
+}
+
+// ══ FOLDER UPLOAD ══
+async function uploadFolder(){
+  if(!folderQueue.length)return;
+  const s=getS();
+  if(!checkSettings(s))return;
+  const overrideName=g('folderName');
+  document.getElementById('folderBtn').disabled=true;
+  document.getElementById('folderProgWrap').style.display='block';
+  addLog(`📂 ${folderQueue.length} فائلیں upload ہو رہی ہیں...`,'inf');
+  for(let i=0;i<folderQueue.length;i++){
+    const f=folderQueue[i];
+    setProg('folder',Math.floor((i/folderQueue.length)*100));
+    document.getElementById('folderProgText').textContent=`${i+1}/${folderQueue.length}: ${f.name}`;
+    const ext=f.name.split('.').pop().toLowerCase();
+    if(!SUPPORTED.includes(ext)){continue;}
+    // Use webkitRelativePath for folder structure
+    const relPath=f.webkitRelativePath||f.name;
+    const parts=relPath.split('/');
+    if(overrideName&&parts.length>0)parts[0]=overrideName;
+    const ghPath=parts.join('/');
+    await processTextFile(f,null,ghPath,s);
+    await delay(150);
+  }
+  setProg('folder',100);
+  document.getElementById('folderProgText').textContent='✅ مکمل!';
+  document.getElementById('folderBtn').disabled=false;
+  folderQueue=[];
+  document.getElementById('folderList').innerHTML='';
+  updateStats();
+  setTimeout(()=>{document.getElementById('folderProgWrap').style.display='none';},2000);
+}
+
+// ══ FILE PROCESSORS ══
+async function processTextFile(file,folder,filename,s){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=async e=>{
+      const content=e.target.result;
+      const sp=folder!==null?buildPath(s,folder,filename):filename;
+      const ok=await ghSave(sp,content,s);
+      if(ok){addLog(`✅ ${file.name} → ${sp}`,'ok');stats.saved++;stats.size+=content.length;}
+      else{addLog(`❌ ${file.name} save نہیں ہوا`,'er');stats.failed++;}
+      res();
+    };
+    r.readAsText(file,'UTF-8');
+  });
+}
+
+async function processZip(file,folder,s){
+  const zip=new JSZip();
+  let z;
+  try{z=await zip.loadAsync(file);}
+  catch(e){addLog(`❌ ZIP خراب: ${file.name}`,'er');return;}
+  const entries=Object.entries(z.files).filter(([p,e])=>!e.dir);
+  addLog(`📦 ${file.name} — ${entries.length} فائلیں`,'inf');
+  for(const[path,entry]of entries){
+    const ext=path.split('.').pop().toLowerCase();
+    if(!SUPPORTED.includes(ext))continue;
+    try{
+      const content=await entry.async('string');
+      const name=path.split('/').pop();
+      const subFolder=path.includes('/')?`${folder||s.folder}/${path.split('/')[0]}`:folder||s.folder;
+      const sp=buildPath(s,subFolder,name);
+      const ok=await ghSave(sp,content,s);
+      if(ok){addLog(`✅ ${name} → ${sp}`,'ok');stats.saved++;stats.size+=content.length;}
+      else{addLog(`❌ ${name} save نہیں`,'er');stats.failed++;}
+      await delay(150);
+    }catch(e){}
+  }
+}
+
+// ══ HELPERS ══
+function setProg(type,v){document.getElementById(type+'ProgBar').style.width=v+'%';}
+
+function addLog(msg,type='inf'){
+  const box=document.getElementById('logBox');
+  const empty=box.querySelector('.li.inf');
+  if(empty&&empty.textContent.includes('ابھی کوئی'))empty.remove();
+  const d=document.createElement('div');
+  d.className=`li ${type}`;
+  const icons={ok:'✅',er:'❌',wn:'⚠️',inf:'ℹ️'};
+  d.innerHTML=`<span>${icons[type]||'•'}</span><span>${msg}</span>`;
+  box.appendChild(d);
+  box.scrollTop=box.scrollHeight;
+}
+
+function clearLog(){
+  document.getElementById('logBox').innerHTML='<div class="li inf"><span>ℹ️</span><span>ابھی کوئی activity نہیں</span></div>';
+  stats={saved:0,failed:0,size:0};updateStats();
+}
+
+function updateStats(){
+  document.getElementById('stSaved').textContent=stats.saved;
+  document.getElementById('stFailed').textContent=stats.failed;
+  document.getElementById('stSize').textContent=(stats.size/1024).toFixed(1);
+}
+
+// STARTUP
+loadSettings();
+</script>
+</body>
+</html>
